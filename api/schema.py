@@ -2,7 +2,7 @@ import json
 import urllib.error
 from http.server import BaseHTTPRequestHandler
 
-from _notion import notion_schema
+from server import notion_schema
 
 
 class handler(BaseHTTPRequestHandler):
