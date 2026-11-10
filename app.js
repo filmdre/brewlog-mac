@@ -99,6 +99,7 @@ function render(){
   const delta=box.s.height-373.18798828125;find(design,'41:844').s.height=box.s.height+20;find(design,'41:747').s.height+=delta;find(design,'41:845').s.top+=delta;design.s.height+=delta;
  }
  if(route==='lists'){const box=find(design,'1:19');populateLists(box);const delta=box.s.height-634;find(design,'1:56').s.top+=delta;design.s.height+=delta;}
+ if(route==='log'){setText(find(design,'5:691'),`ENTRY / ${String(saved.visits.length+1).padStart(3,'0')}`);setText(find(design,'5:744'),new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}));}
  if(route==='activity'){const feed=find(design,'4:456');feed.children=[emptyCard('No activity yet','Your coffee circle’s activity will appear here.',30)];feed.s.height=245;const layout=find(design,'4:455');layout.children=[feed];layout.s.height=275;const footer=all(design).find(n=>n.name==='Footer');footer.s.top=66+267+275;design.s.height=footer.s.top+208;}
  document.body.dataset.route=route;app.innerHTML=`<div class="design-viewport" style="height:${design.s.height}px"><div class="design-frame" style="height:${design.s.height}px">${design.children.map(n=>nodeHTML(n)).join('')}</div></div>`;
  document.querySelectorAll('.bottom-nav button').forEach(b=>{const active=b.dataset.route===route||route==='lists'&&b.dataset.route==='journal';b.classList.toggle('active',active);b.setAttribute('aria-current',active?'page':'false');});resize();bind();
