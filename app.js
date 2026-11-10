@@ -90,6 +90,7 @@ function render(){
  if(!['journal','cafes','log','activity','lists'].includes(route))route='journal';
  let design=structuredClone(FIGMA_DESIGNS[route]||FIGMA_DESIGNS.journal);design.children.splice(1,1);
  for(const n of all(design).filter(n=>n.type==='TEXT'&&['DOPPIO','DOPPIO®'].includes(n.text)))setText(n,'CAFECITO');
+ for(const n of all(design).filter(n=>n.type==='TEXT'&&n.text==='Settings'))setText(n,'Profile');
  const sourceCafes=directory, favoriteNames=Object.keys(saved.favorites).filter(key=>saved.favorites[key]===true);
  if(route==='cafes'){
   const matches=sourceCafes.map(cafeState).filter(c=>(filter==='All'||filter==='Favorites'&&c.favorite||filter==='Logged'&&c.status==='Logged'||filter==='Want to try'&&c.status!=='Logged')&&[c.name,...(c.tags||[]).filter(t=>!(c.cities||[]).includes(t))].join(' ').toLowerCase().includes(query.toLowerCase()));
