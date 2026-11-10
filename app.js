@@ -33,6 +33,8 @@ function css(style){return Object.entries(style).filter(([k])=>!k.startsWith('bo
 function inputCss(style){return `${css(style)};border-style:${style.borderStyle||'solid'};border-color:${style.borderColor||'#c8c7bd'};border-width:${style.borderWidth||'0 0 1px 0'}`;}
 function nodeHTML(n,context={}){
  if(n.type==='FAVORITE')return `<button type="button" class="layer cafe-favorite ${n.favorite?'is-favorite':''}" data-action="favorite" aria-label="${esc(`${n.favorite?'Remove':'Add'} ${n.cafeName} ${n.favorite?'from':'to'} favorites`)}" aria-pressed="${n.favorite}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 5.8a5.2 5.2 0 0 0-7.4 0L12 7.2l-1.4-1.4a5.2 5.2 0 1 0-7.4 7.4L12 22l8.8-8.8a5.2 5.2 0 0 0 0-7.4Z"/></svg></button>`;
+ if(n.type==='BOOKMARK')return `<button type="button" class="layer cafe-bookmark ${n.bookmarked?'is-bookmarked':''}" data-action="bookmark" aria-label="${esc(`${n.bookmarked?'Remove':'Add'} ${n.cafeName} ${n.bookmarked?'from':'to'} a list`)}" aria-pressed="${n.bookmarked}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4V3Z"/></svg></button>`;
+ if(n.type==='MORE')return `<button type="button" class="layer item-more" data-action="item-menu" aria-label="Open item actions"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg></button>`;
  if(n.type==='EMPTY')return `<article class="layer empty-coffee-card" style="${css(n.s)}"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 19h25v12a10 10 0 0 1-10 10h-5a10 10 0 0 1-10-10V19Zm25 2h3a6 6 0 0 1 0 12h-4M7 44h31M17 13V7m8 6V4m8 9V7"/></svg><h3>${esc(n.text)}</h3><p>${esc(n.description||'')}</p></article>`;
  if(n.name==='Journal collections')return `<div class="layer journal-collections" style="${css({...n.s,width:300})}"><div class="journal-tabs" role="tablist" aria-label="Journal collections">${['Favorites','Lists'].map(label=>`<button type="button" role="tab" aria-selected="${collectionTab===label}" class="${collectionTab===label?'selected':''}" data-action="collection-${label.toLowerCase()}">${label}</button>`).join('')}</div><a class="journal-database" href="https://peach-gong-17f.notion.site/411690f50c8380aba583c2d6edb14a41?v=414690f50c83814fade8000c1b5ec273" target="_blank" rel="noopener noreferrer" title="View the café database in Notion (read-only)">Database</a></div>`;
  let ctx={...context},tag='div',attrs='',style={...n.s},content='';
@@ -40,7 +42,7 @@ function nodeHTML(n,context={}){
  const text=words(n).trim();
  if(n.name.startsWith('Button')&&!n.name.includes(':margin')){
   tag='button';attrs+=' type="button"';let action=n.action;
-  if(n.id==='41:753')action='collection-favorites';if(n.id==='41:757')action='collection-lists';
+  if(['41:753','1:591'].includes(n.id))action='collection-favorites';if(['41:757','1:595'].includes(n.id))action='collection-lists';
   if(text==='CAFECITO'||text==='DOPPIO')action='home';
   if(!action&&n.name.includes('stars')){action=route==='log'?'visit-rate':'rate';attrs+=` data-rating="${n.name.match(/(\d) stars/)[1]}"`;}
   if(!action&&/favorit/i.test(n.name))action='favorite';
@@ -48,10 +50,11 @@ function nodeHTML(n,context={}){
   if(!action&&text==='Like'){action='like';attrs+=` data-like="${n.id}"`;}
   if(!action&&text==='Save to diary')action='save-visit';if(!action&&text==='Find people')action='people';
   if(!action&&text==='Add to database')action='add-cafe';
+  if(!action&&n.name.includes('Open item actions'))action='item-menu';
   if(!action&&n.children.some(c=>c.name==='PlusIcon')&&!text)action='log';if(!action&&n.children.some(c=>c.name==='ArrowIcon')&&!text)action='lists';
   if(n.id==='1:20')action='favorites';if(n.id==='1:34')action='want';if(n.id==='1:45')action='new-list';
   if(['11:1152','11:1155','11:1157','11:1159'].includes(n.id)){action='filter';attrs+=` data-filter="${text}"`;style.background=filter===text?'#171713':'transparent';style.color=filter===text?'white':'#77766f';}
-  if(action)attrs+=` data-action="${action}"`;attrs+=` aria-label="${esc(n.name.startsWith('Button - ')?n.name.slice(9):text||action||'Open')}"`;
+  if(action)attrs+=` data-action="${action}"`;if(n.itemIndex!==undefined)attrs+=` data-item-index="${n.itemIndex}"`;if(n.itemKind)attrs+=` data-item-kind="${n.itemKind}"`;attrs+=` aria-label="${esc(n.name.startsWith('Button - ')?n.name.slice(9):text||action||'Open')}"`;
   if(action==='save-visit')attrs+=' disabled';
  }
  if(n.name==='Link'){tag='button';attrs+=` type="button" data-action="${text==='Export journal'?'export':'settings'}"`;}
@@ -70,15 +73,17 @@ function nodeHTML(n,context={}){
  return `<${tag} class="layer ${n.type==='TEXT'?'layer-text':''}" data-node="${n.id}"${attrs} style="${css(style)}">${content}</${tag}>`;
 }
 const examples=[{name:'Subtext Coffee',source:'Added from a friend',tags:['Pour over','Quiet'],status:'Logged',rating:5,favorite:true},{name:'Kawa',source:'Saved from the weekend list',tags:['Espresso','Pastries'],status:'Next up',rating:0,favorite:true},{name:'Lowkey',source:'Recommended by Mia',tags:['Light roast','Design'],status:'Logged',rating:4,favorite:true},{name:'Assembly',source:'Saved from Field Notes',tags:['Roastery','Espresso'],status:'Next up',rating:0,favorite:true},{name:'Process',source:'On the summer list',tags:['Natural','Social'],status:'Someday',rating:0},{name:'Drip',source:'Saved from Sam',tags:['Brunch','Outdoor'],status:'Someday',rating:0}];
-function cafeState(c){const key=nameOf(c);return {...c,name:key,status:saved.visits.some(v=>v.cafe===key)?'Logged':'Up next',favorite:saved.favorites[key]===true,rating:saved.ratings[key]??0};}
+function cafeState(c){const key=nameOf(c);return {...c,name:key,status:saved.visits.some(v=>v.cafe===key)?'Logged':'Up next',favorite:saved.favorites[key]===true,rating:saved.ratings[key]??0,bookmarked:saved.lists.some(list=>Array.isArray(list.cafes)&&list.cafes.includes(key))};}
 function emptyCard(title,description,top=1){return {id:'empty-'+title,name:'Empty coffee card',type:'EMPTY',s:{left:1,top,width:364,height:185.09375},text:title,description,children:[]};}
 function makeCard(template,c,index){
  const card=structuredClone(template);card.cafeName=c.name;card.s.top=1+index*186.09375;const nodes=all(card),texts=nodes.filter(n=>n.type==='TEXT');
  card.children[0].children[0].s.background=c.status==='Logged'?'#171713':'#f04e23';
  setText(texts[0],c.status||'Up next');setText(texts[1],c.name);texts[1].s.width=330;texts[1].s.fontSize=Math.min(23,550/Math.max(c.name.length,1));setText(texts[2],/^https?:/.test(c.source||'')?'From the café directory':c.source||'From the café directory');texts[2].s.width=330;
- for(const n of nodes.filter(n=>n.name.startsWith('Button - ')&&!n.name.includes(':margin'))){if(n.name.includes('stars')){const score=Number(n.name.match(/(\d) stars/)[1]);for(const p of all(n).flatMap(n=>n.paths||[]))p.fill=score<=c.rating?'#f04e23':'#b6b4a9';}else if(/favorit/i.test(n.name)){n.action='favorite';n.name=`Button - ${c.favorite?'Remove':'Add'} ${c.name} ${c.favorite?'from':'to'} favorites`;n.s.background=c.favorite?'#f04e23':'transparent';}}
- const removeImportedHearts=n=>{n.children=(n.children||[]).filter(child=>!(child.name.startsWith('Button')&&/favorit/i.test(child.name))&&child.name!=='HeartIcon');n.children.forEach(removeImportedHearts);};removeImportedHearts(card);
+ for(const n of nodes.filter(n=>n.name.startsWith('Button - ')&&!n.name.includes(':margin'))){if(n.name.includes('stars')){const score=Number(n.name.match(/(\d) stars/)[1]);for(const p of all(n).flatMap(n=>n.paths||[]))p.fill=score<=c.rating?'#f04e23':'#b6b4a9';}else if(/favorit/i.test(n.name)){n.action='favorite';n.name=`Button - ${c.favorite?'Remove':'Add'} ${c.name} ${c.favorite?'from':'to'} favorites`;n.s.background=c.favorite?'#f04e23':'transparent';}else if(/list/i.test(n.name)){n.action='bookmark';n.name=`Button - ${c.bookmarked?'Remove':'Add'} ${c.name} ${c.bookmarked?'from':'to'} a list`;}}
+ const removeImportedControls=n=>{n.children=(n.children||[]).filter(child=>!(child.name.startsWith('Button')&&(/favorit/i.test(child.name)||/list/i.test(child.name)))&&child.name!=='HeartIcon'&&child.name!=='BookmarkIcon');n.children.forEach(removeImportedControls);};removeImportedControls(card);
+ card.children.push({id:`bookmark-${index}`,name:'Bookmark control',type:'BOOKMARK',bookmarked:c.bookmarked,cafeName:c.name,s:{},children:[]});
  card.children.push({id:`favorite-${index}`,name:'Favorite control',type:'FAVORITE',favorite:c.favorite,cafeName:c.name,s:{},children:[]});
+ if(!c.page_id)card.children.push({id:`more-${index}`,name:'Item actions',type:'MORE',itemIndex:index,itemKind:'cafe',s:{},children:[]});
  return card;
 }
 function render(){
@@ -98,16 +103,16 @@ function render(){
  }
  if(route==='journal'){
   const visits=saved.visits,average=visits.length?visits.reduce((sum,v)=>sum+Number(v.rating||0),0)/visits.length:0;
-  setText(find(design,'41:680'),String(visits.length).padStart(2,'0'));setText(find(design,'41:687'),average?average.toFixed(1):'—');setText(find(design,'41:692'),favoriteNames.length);
-  const diary=find(design,'41:707'),template=diary.children[0];
-  diary.children=visits.length?visits.map((visit,i)=>{const row=structuredClone(template);row.s.top=i*115;const texts=all(row).filter(n=>n.type==='TEXT'),date=new Date(visit.date);[String(i+1).padStart(2,'0'),date.getDate(),date.toLocaleDateString('en-US',{month:'short',year:'numeric'}),'Visit log',visit.cafe,visit.order].forEach((value,j)=>setText(texts[j],value));texts[4].s.width=248;return row;}):[emptyCard('No visits yet','Log your first cup to start your diary.',0)];
-  const diaryHeight=visits.length?visits.length*115:185.09375,diaryDelta=diaryHeight-230;diary.s.height=diaryHeight;find(design,'41:695').s.height+=diaryDelta;find(design,'41:747').s.top+=diaryDelta;find(design,'41:845').s.top+=diaryDelta;design.s.height+=diaryDelta;
-  const box=find(design,'41:762');box.s.background='transparent';
+  setText(find(design,'1:496'),String(visits.length).padStart(2,'0'));setText(find(design,'1:503'),average?average.toFixed(1):'—');setText(find(design,'1:508'),favoriteNames.length);
+  const diary=find(design,'1:523'),template=diary.children[0];
+  diary.children=visits.length?visits.map((visit,i)=>{const row=structuredClone(template);row.s.top=i*104;const texts=all(row).filter(n=>n.type==='TEXT'),date=new Date(visit.date);[String(i+1).padStart(2,'0'),date.getDate(),date.toLocaleDateString('en-US',{month:'short',year:'numeric'}),'Visit log',visit.cafe,visit.order||''].forEach((value,j)=>setText(texts[j],value));const more=all(row).find(n=>n.name.includes('Open item actions'));if(more){more.itemIndex=i;more.itemKind='visit';}return row;}):[emptyCard('No visits yet','Log your first cup to start your diary.',0)];
+  const diaryHeight=visits.length?visits.length*104:185.09375,recentDelta=diaryHeight-208;diary.s.height=diaryHeight;find(design,'1:511').s.height=358+recentDelta;find(design,'1:585').s.top+=recentDelta;find(design,'1:691').s.top+=recentDelta;design.s.height+=recentDelta;
+  const box=find(design,'1:600');box.s.background='transparent';
   if(collectionTab==='Favorites'){
    const template=box.children[0],favorites=favoriteNames.map(name=>sourceCafes.find(c=>nameOf(c)===name)||{name});box.children=favorites.length?favorites.slice(0,3).map((c,i)=>makeCard(template,cafeState(c),i)):[emptyCard('No favorites yet','Tap a heart on a café to save it here.')];box.s.height=Math.max(Math.min(favorites.length,3),1)*186.09375+1;
-  }else{populateLists(box);find(design,'41:759').action='new-list';}
-  if(collectionTab==='Favorites')find(design,'41:759').action='favorites';
-  const delta=box.s.height-373.18798828125;find(design,'41:844').s.height=box.s.height+20;find(design,'41:747').s.height+=delta;find(design,'41:845').s.top+=delta;design.s.height+=delta;
+  }else{populateLists(box);find(design,'1:597').action='new-list';}
+  if(collectionTab==='Favorites')find(design,'1:597').action='favorites';
+  const delta=box.s.height-373.18798828125;find(design,'1:690').s.height=393.18798828125+delta;find(design,'1:585').s.height=544.18798828125+delta;find(design,'1:691').s.top+=delta;design.s.height+=delta;
  }
  if(route==='lists'){const box=find(design,'1:19');populateLists(box);const delta=box.s.height-634;find(design,'1:56').s.top+=delta;design.s.height+=delta;}
  if(route==='log'){setText(find(design,'15:800'),`ENTRY / ${String(saved.visits.length+1).padStart(3,'0')}`);setText(find(design,'15:857'),new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}));}
@@ -132,6 +137,9 @@ function openAccountModal(){
  form.onsubmit=event=>{event.preventDefault();submit('signin');};el.querySelector('[data-mode="signup"]').onclick=()=>submit('signup');
 }
 function updateCafeSuggestions(){const input=document.querySelector('#visitCafe'),list=document.querySelector('#cafe-suggestions');if(!input||!list)return;const term=input.value.trim().toLocaleLowerCase('en-US'),names=directory.map(c=>nameOf(c)).filter((name,index,allNames)=>name&&allNames.indexOf(name)===index).filter(name=>!term||name.toLocaleLowerCase('en-US').includes(term)).slice(0,8);list.innerHTML=names.map(name=>`<button type="button" class="cafe-suggestion" role="option" data-cafe-option="${esc(name)}">${esc(name)}</button>`).join('');list.hidden=!names.length;input.setAttribute('aria-expanded',String(names.length>0));}
+function openListPicker(name){const items=saved.lists.map((list,i)=>`<button type="button" class="list-choice" data-list-index="${i}">${esc(list.name)}</button>`).join('');const el=modal('Add to a list',`<p>Save <strong>${esc(name)}</strong> to one of your lists.</p><div class="list-choices">${items||'<p class="account-note">No lists yet.</p>'}</div><form id="quickListForm"><label for="quickListName">NEW LIST</label><input id="quickListName" placeholder="e.g. Weekend coffee stops" required><button class="solid" type="submit">CREATE LIST</button></form>`);el.querySelectorAll('[data-list-index]').forEach(button=>button.onclick=()=>{const list=saved.lists[Number(button.dataset.listIndex)];if(list&&!list.cafes.includes(name))list.cafes.push(name);persist();el.close();render();toast(`Added to ${list.name}.`);});el.querySelector('#quickListForm').onsubmit=event=>{event.preventDefault();const list={name:el.querySelector('#quickListName').value.trim(),cafes:[name]};saved.lists.push(list);persist();el.close();render();toast(`Added to ${list.name}.`);};}
+function openItemMenu(button,index,kind,name){document.querySelectorAll('.item-menu').forEach(menu=>menu.remove());const menu=document.createElement('div');menu.className='item-menu';menu.innerHTML='<button type="button" data-menu-action="edit">Edit</button><button type="button" data-menu-action="delete">Delete</button>';button.parentElement.append(menu);menu.querySelector('[data-menu-action="edit"]').onclick=()=>{menu.remove();if(kind==='visit')editVisit(index);};menu.querySelector('[data-menu-action="delete"]').onclick=()=>{menu.remove();if(kind==='visit'&&confirm('Delete this journal entry?')){saved.visits.splice(index,1);persist();render();toast('Journal entry deleted.');}if(kind==='cafe'&&confirm(`Remove ${name} from this view?`)){directory=directory.filter(c=>nameOf(c)!==name);render();toast('Café removed.');}};}
+function editVisit(index){const visit=saved.visits[index];if(!visit)return;const el=modal('Edit visit',`<form id="editVisitForm"><label for="editOrder">YOUR ORDER</label><input id="editOrder" value="${esc(visit.order||'')}" placeholder="What did you have?"><label for="editComment">COMMENT</label><textarea id="editComment" placeholder="Taste, atmosphere, company, or anything worth remembering...">${esc(visit.comment||'')}</textarea><button class="solid" type="submit">SAVE CHANGES</button></form>`);el.querySelector('#editVisitForm').onsubmit=event=>{event.preventDefault();saved.visits[index].order=el.querySelector('#editOrder').value.trim();saved.visits[index].comment=el.querySelector('#editComment').value.trim();persist();el.close();render();toast('Journal entry updated.');};}
 function bind(){document.querySelectorAll('[data-action]').forEach(button=>button.onclick=async()=>{
  const action=button.dataset.action,name=button.closest('[data-cafe]')?.dataset.cafe;
  if(action==='home')go('journal');
@@ -140,6 +148,8 @@ function bind(){document.querySelectorAll('[data-action]').forEach(button=>butto
  if(action==='favorites'||action==='want'){filter=action==='favorites'?'Favorites':'Want to try';pageSize=6;go('cafes');}
  if(action==='filter'){filter=button.dataset.filter;pageSize=6;render();}if(action==='more'){pageSize+=12;render();}
  if(action==='favorite'){saved.favorites[name]=saved.favorites[name]!==true;persist();render();}
+ if(action==='bookmark'){openListPicker(name);}
+ if(action==='item-menu'){openItemMenu(button,Number(button.dataset.itemIndex||0),button.dataset.itemKind||'visit',name);}
  if(action==='rate')setCafeRating(name,Number(button.dataset.rating));
  if(action==='visit-rate'){visitRating=Number(button.dataset.rating);document.querySelectorAll('[data-action="visit-rate"]').forEach(b=>b.classList.toggle('chosen',Number(b.dataset.rating)<=visitRating));const value=document.querySelector('[data-node="15:845"]');if(value)value.textContent=visitRating?visitRating.toFixed(1):'—';validateVisit();}
  if(action==='save-visit'){const cafeInput=document.querySelector('#visitCafe'),cafeName=cafeInput?.value.trim(),location=document.querySelector('#visitLocation')?.value.trim()||'',order=document.querySelector('#visitOrder')?.value.trim()||'',comment=document.querySelector('#visitComment')?.value.trim()||'';if(!cafeName){toast('Choose a café before saving your visit.');return;}button.disabled=true;try{const existing=directory.find(c=>nameOf(c).toLowerCase()===cafeName.toLowerCase());if(!existing){const response=await fetch('/api/cafes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:cafeName,location})});const data=await response.json();if(!response.ok)throw Error(data.error||'Could not add this café to the directory.');if(data.cafe){directory.unshift(data.cafe);selectedCafe=nameOf(data.cafe);}}else selectedCafe=nameOf(existing);saved.visits.unshift({cafe:selectedCafe||cafeName,location,order,comment,rating:visitRating,date:new Date().toISOString()});persist();go('journal');toast(account.user?'Visit saved to your journal.':'Visit saved to this device.');}catch(error){button.disabled=false;toast(error.message);}}
