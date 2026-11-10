@@ -151,7 +151,7 @@ def notion_cafes():
     return {"cafes": [normalize_page(page) for page in results]}
 
 
-def notion_create_cafe(name):
+def notion_create_cafe(name, location=""):
     load_dotenv()
     token = os.getenv("NOTION_TOKEN")
     data_source_id = os.getenv("NOTION_DATA_SOURCE_ID")
@@ -180,9 +180,19 @@ def notion_create_cafe(name):
     duplicate = next((cafe for cafe in existing if cafe.get("name", "").strip().casefold() == name.casefold()), None)
     if duplicate:
         return {"cafe": duplicate, "created": False}
+    properties_payload = {title_name: {"title": [{"type": "text", "text": {"content": name}}]}}
+    location = str(location or "").strip()[:400]
+    address_name = next((key for key, prop in properties.items() if key.lower() == "address" and prop.get("type") == "rich_text"), None)
+    city_name = next((key for key, prop in properties.items() if key.lower() == "city" and prop.get("type") == "multi_select"), None)
+    if location and address_name:
+        properties_payload[address_name] = {"rich_text": [{"type": "text", "text": {"content": location}}]}
+    if location and city_name and not any(character.isdigit() for character in location):
+        city = location.split(",", 1)[0].strip()
+        if city:
+            properties_payload[city_name] = {"multi_select": [{"name": city[:100]}]}
     body = {
         "parent": {"data_source_id": data_source_id},
-        "properties": {title_name: {"title": [{"type": "text", "text": {"content": name}}]}},
+        "properties": properties_payload,
     }
     request = urllib.request.Request(
         "https://api.notion.com/v1/pages",
@@ -282,9 +292,12 @@ class Handler(SimpleHTTPRequestHandler):
                 length = int(self.headers.get("Content-Length", "0"))
                 payload = json.loads(self.rfile.read(length).decode() or "{}")
                 name = str(payload.get("name", "")).strip()
+                location = str(payload.get("location", "")).strip()
                 if not name or len(name) > 120:
                     raise ValueError("Enter a café name up to 120 characters.")
-                body = json.dumps(notion_create_cafe(name)).encode()
+                if len(location) > 400:
+                    raise ValueError("Enter an address or city up to 400 characters.")
+                body = json.dumps(notion_create_cafe(name, location)).encode()
                 status = 200
             except ValueError as error:
                 body = json.dumps({"error": str(error)}).encode()

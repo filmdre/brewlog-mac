@@ -25,9 +25,12 @@ class handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode() or "{}")
             name = str(payload.get("name", "")).strip()
+            location = str(payload.get("location", "")).strip()
             if not name or len(name) > 120:
                 raise ValueError("Enter a café name up to 120 characters.")
-            body = json.dumps(notion_create_cafe(name)).encode()
+            if len(location) > 400:
+                raise ValueError("Enter an address or city up to 400 characters.")
+            body = json.dumps(notion_create_cafe(name, location)).encode()
             status = 200
         except ValueError as error:
             body = json.dumps({"error": str(error)}).encode()
