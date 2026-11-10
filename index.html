@@ -4,22 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cafecito — your coffee journal</title>
-    <link rel="stylesheet" href="styles.css?v=3" />
+    <link rel="stylesheet" href="styles.css?v=8" />
   </head>
   <body>
     <div class="app-shell">
-      <header class="app-header">
-        <a class="wordmark" href="#journal" aria-label="Cafecito home"><span class="mark" aria-hidden="true"></span> CAFECITO</a>
-      </header>
       <main id="app"></main>
-      <footer class="app-footer"><span>CAFECITO</span><div><a href="#">EXPORT JOURNAL</a><a href="#">SETTINGS</a></div></footer>
       <nav class="bottom-nav" aria-label="App navigation">
         <button data-route="journal">JOURNAL</button>
         <button data-route="cafes">CAFÉS</button>
-        <button data-route="log">＋ LOG</button>
-        <button data-route="lists">LISTS</button>
+        <button data-route="log"><span class="nav-plus" aria-hidden="true">＋</span> LOG</button>
+        <button data-route="activity">ACTIVITY</button>
       </nav>
     </div>
-    <script src="app.js?v=3"></script>
+    <script src="design-spec.js?v=5"></script>
+    <script src="app.js?v=8"></script>
   </body>
 </html>
