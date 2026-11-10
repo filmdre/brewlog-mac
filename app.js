@@ -30,12 +30,14 @@ const setText=(n,text)=>{if(n){n.text=String(text);n.runs=[{text:String(text),s:
 function nameOf(c){let name=String(c.name||'');for(const city of c.cities||[]){const literal=city.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');name=name.replace(new RegExp('\\s*(?:—|-|\\(|,)\\s*'+literal+'(?:,\\s*CA)?\\)?$','i'),'');}return name.replace(/\s+—\s+[^,]+,\s*CA$/i,'').replace(/\s+\([^)]{2,30}\)$/,'').trim();}
 function css(style){return Object.entries(style).filter(([k])=>!k.startsWith('border')||k==='borderRadius').map(([k,v])=>`${k.replace(/[A-Z]/g,c=>'-'+c.toLowerCase())}:${typeof v==='number'&&!['fontWeight','opacity','zIndex'].includes(k)?v+'px':v}`).join(';');}
 function nodeHTML(n,context={}){
+ if(n.type==='EMPTY')return `<article class="layer empty-coffee-card" style="${css(n.s)}"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 19h25v12a10 10 0 0 1-10 10h-5a10 10 0 0 1-10-10V19Zm25 2h3a6 6 0 0 1 0 12h-4M7 44h31M17 13V7m8 6V4m8 9V7"/></svg><h3>${esc(n.text)}</h3><p>${esc(n.description||'')}</p></article>`;
+ if(n.name==='Journal collections')return `<div class="layer journal-tabs" style="${css({...n.s,width:230})}" role="tablist" aria-label="Journal collections">${['Favorites','Lists'].map(label=>`<button type="button" role="tab" aria-selected="${collectionTab===label}" class="${collectionTab===label?'selected':''}" data-action="collection-${label.toLowerCase()}">${label}</button>`).join('')}</div>`;
  let ctx={...context},tag='div',attrs='',style={...n.s},content='';
  if(n.name==='CafeCard'){ctx.cafe=n.cafeName||'';attrs+=` data-cafe="${esc(ctx.cafe)}"`;}
  const text=words(n).trim();
  if(n.name.startsWith('Button')&&!n.name.includes(':margin')){
   tag='button';attrs+=' type="button"';let action=n.action;
-  if(n.id==='6:100')action='collection-favorites';if(n.id==='6:104')action='collection-lists';
+  if(n.id==='41:753')action='collection-favorites';if(n.id==='41:757')action='collection-lists';
   if(text==='CAFECITO'||text==='DOPPIO')action='home';
   if(!action&&n.name.includes('stars')){action=route==='log'?'visit-rate':'rate';attrs+=` data-rating="${n.name.match(/(\d) stars/)[1]}"`;}
   if(!action&&/favorit/i.test(n.name))action='favorite';
@@ -44,7 +46,7 @@ function nodeHTML(n,context={}){
   if(!action&&text==='Save to diary')action='save-visit';if(!action&&text==='Find people')action='people';
   if(!action&&n.children.some(c=>c.name==='PlusIcon')&&!text)action='log';if(!action&&n.children.some(c=>c.name==='ArrowIcon')&&!text)action='lists';
   if(n.id==='1:20')action='favorites';if(n.id==='1:34')action='want';if(n.id==='1:45')action='new-list';
-  if(['2:32','2:35','2:37','2:39'].includes(n.id)){action='filter';attrs+=` data-filter="${text}"`;style.background=filter===text?'#171713':'transparent';style.color=filter===text?'white':'#77766f';}
+  if(['11:1152','11:1155','11:1157','11:1159'].includes(n.id)){action='filter';attrs+=` data-filter="${text}"`;style.background=filter===text?'#171713':'transparent';style.color=filter===text?'white':'#77766f';}
   if(action)attrs+=` data-action="${action}"`;attrs+=` aria-label="${esc(n.name.startsWith('Button - ')?n.name.slice(9):text||action||'Open')}"`;
   if(action==='save-visit')attrs+=' disabled';
  }
@@ -62,41 +64,49 @@ function nodeHTML(n,context={}){
  return `<${tag} class="layer ${n.type==='TEXT'?'layer-text':''}" data-node="${n.id}"${attrs} style="${css(style)}">${content}</${tag}>`;
 }
 const examples=[{name:'Subtext Coffee',source:'Added from a friend',tags:['Pour over','Quiet'],status:'Logged',rating:5,favorite:true},{name:'Kawa',source:'Saved from the weekend list',tags:['Espresso','Pastries'],status:'Next up',rating:0,favorite:true},{name:'Lowkey',source:'Recommended by Mia',tags:['Light roast','Design'],status:'Logged',rating:4,favorite:true},{name:'Assembly',source:'Saved from Field Notes',tags:['Roastery','Espresso'],status:'Next up',rating:0,favorite:true},{name:'Process',source:'On the summer list',tags:['Natural','Social'],status:'Someday',rating:0},{name:'Drip',source:'Saved from Sam',tags:['Brunch','Outdoor'],status:'Someday',rating:0}];
-function cafeState(c){const key=nameOf(c);return {...c,name:key,favorite:saved.favorites[key]===true,rating:saved.ratings[key]??0};}
+function cafeState(c){const key=nameOf(c);return {...c,name:key,status:saved.visits.some(v=>v.cafe===key)?'Logged':'Up next',favorite:saved.favorites[key]===true,rating:saved.ratings[key]??0};}
+function emptyCard(title,description,top=1){return {id:'empty-'+title,name:'Empty coffee card',type:'EMPTY',s:{left:1,top,width:364,height:185.09375},text:title,description,children:[]};}
 function makeCard(template,c,index){
- const card=structuredClone(template);card.cafeName=c.name;card.s.top=1+index*254;const nodes=all(card),texts=nodes.filter(n=>n.type==='TEXT');
- setText(texts[0],c.status||'Want to try');setText(texts[1],c.source||'From Notion');setText(texts[2],c.name);texts[2].s.width=330;
- const tags=(c.tags||[]).filter(t=>!(c.cities||[]).includes(t));setText(texts[3],tags[0]||'');setText(texts[4],tags[1]||'');
+ const card=structuredClone(template);card.cafeName=c.name;card.s.top=1+index*186.09375;const nodes=all(card),texts=nodes.filter(n=>n.type==='TEXT');
+ card.children[0].children[0].s.background=c.status==='Logged'?'#171713':'#f04e23';
+ setText(texts[0],c.status||'Up next');setText(texts[1],c.name);texts[1].s.width=330;texts[1].s.fontSize=Math.min(23,550/Math.max(c.name.length,1));setText(texts[2],/^https?:/.test(c.source||'')?'From the café directory':c.source||'From the café directory');texts[2].s.width=330;
  for(const n of nodes.filter(n=>n.name.startsWith('Button - ')&&!n.name.includes(':margin'))){if(n.name.includes('stars')){const score=Number(n.name.match(/(\d) stars/)[1]);for(const p of all(n).flatMap(n=>n.paths||[]))p.fill=score<=c.rating?'#f04e23':'#b6b4a9';}else if(/favorit/i.test(n.name)){n.action='favorite';n.name=`Button - ${c.favorite?'Remove':'Add'} ${c.name} ${c.favorite?'from':'to'} favorites`;n.s.background=c.favorite?'#f04e23':'transparent';}}
  return card;
 }
 function render(){
+ if(!['journal','cafes','log','activity','lists'].includes(route))route='journal';
  const design=structuredClone(FIGMA_DESIGNS[route]||FIGMA_DESIGNS.journal);design.children.splice(1,1);
  for(const n of all(design).filter(n=>n.type==='TEXT'&&['DOPPIO','DOPPIO®'].includes(n.text)))setText(n,'CAFECITO');
+ const sourceCafes=directory, favoriteNames=Object.keys(saved.favorites).filter(key=>saved.favorites[key]===true);
  if(route==='cafes'){
-  const box=find(design,'2:41'),template=box.children[0];const matches=(directory.length?directory:examples).map(cafeState).filter(c=>(filter==='All'||filter==='Favorites'&&c.favorite||filter==='Logged'&&c.status==='Logged'||filter==='Want to try'&&c.status!=='Logged')&&[c.name,...(c.tags||[]).filter(t=>!(c.cities||[]).includes(t))].join(' ').toLowerCase().includes(query.toLowerCase()));
-  const shown=matches.slice(0,pageSize),height=Math.max(shown.length*254+1,100),delta=height-1525;box.children=shown.map((c,i)=>makeCard(template,c,i));box.s.height=height;find(design,'2:322').s.height+=delta;find(design,'2:7').s.height+=delta;find(design,'2:323').s.top+=delta;design.s.height+=delta;
-  if(!shown.length)box.children=[{id:'empty',type:'TEXT',name:'Empty',s:{left:15,top:30,width:330,height:40,fontSize:13,lineHeight:20},text:'No cafés match this view.',children:[]}];
-  if(matches.length>pageSize)box.children.push({id:'more',type:'FRAME',name:'Button',action:'more',s:{left:0,top:height+10,width:366,height:40},children:[{id:'more-text',type:'TEXT',name:'More',s:{left:0,top:0,width:366,height:40,fontSize:11,lineHeight:40,textAlign:'center'},text:`Show more (${matches.length-shown.length})`,children:[]}]});
+  const box=find(design,'11:1161'),template=box.children[0],matches=sourceCafes.map(cafeState).filter(c=>(filter==='All'||filter==='Favorites'&&c.favorite||filter==='Logged'&&c.status==='Logged'||filter==='Want to try'&&c.status!=='Logged')&&[c.name,...(c.tags||[]).filter(t=>!(c.cities||[]).includes(t))].join(' ').toLowerCase().includes(query.toLowerCase()));
+  const shown=matches.slice(0,pageSize),height=Math.max(shown.length,1)*186.09375+1,more=matches.length>pageSize?60:0,delta=height+more-1117.5625;
+  box.children=shown.length?shown.map((c,i)=>makeCard(template,c,i)):[emptyCard(query?'No matching cafés':filter==='Favorites'?'No favorites yet':filter==='Logged'?'No visits yet':'No cafés yet',query?'Try another café name.':'Your saved cafés will appear here.')];box.s.height=height+more;box.s.background='transparent';
+  find(design,'11:1400').s.height+=delta;find(design,'11:1127').s.height+=delta;find(design,'11:1401').s.top+=delta;design.s.height+=delta;
+  if(more)box.children.push({id:'more',type:'FRAME',name:'Button',action:'more',s:{left:0,top:height+10,width:366,height:40},children:[{id:'more-text',type:'TEXT',name:'More',s:{left:0,top:0,width:366,height:40,fontSize:11,lineHeight:40,textAlign:'center'},text:`Show more (${matches.length-shown.length})`,children:[]}]});
  }
  if(route==='journal'){
-  const sourceCafes=[...directory,...examples],favoriteNames=Object.keys(saved.favorites).filter(key=>saved.favorites[key]===true),favorites=favoriteNames.map(name=>sourceCafes.find(c=>nameOf(c)===name)||{name,status:'Logged',tags:[]});
-  const favoriteBox=find(design,'6:109');
-  if(favorites.length){const template=favoriteBox.children[0];favoriteBox.children=favorites.slice(0,2).map((c,i)=>makeCard(template,cafeState(c),i));}
-  else favoriteBox.children=[{id:'empty-favorites',type:'TEXT',name:'Empty favorites',s:{left:24,top:210,width:318,height:40,color:'rgba(241,240,232,1.0)',fontFamily:'Inter',fontSize:13,fontWeight:400,lineHeight:20,textAlign:'center'},text:'No favorites yet.',children:[]}];
-  const visits=saved.visits,average=visits.length?visits.reduce((sum,visit)=>sum+Number(visit.rating||0),0)/visits.length:0;setText(find(design,'6:27'),String(visits.length).padStart(2,'0'));setText(find(design,'6:34'),average?average.toFixed(1):'0.0');setText(find(design,'6:39'),String(favorites.length));
-  const rows=[['6:60','6:63','6:71','6:73'],['6:82','6:84','6:90','6:91']];rows.forEach((ids,index)=>{const visit=visits[index];if(visit){setText(find(design,ids[0]),new Date(visit.date).getDate());setText(find(design,ids[1]),new Date(visit.date).toLocaleDateString('en-US',{month:'short',year:'numeric'}));setText(find(design,ids[2]),visit.cafe);setText(find(design,ids[3]),visit.order);}else{setText(find(design,ids[0]),'—');setText(find(design,ids[1]),'—');setText(find(design,ids[2]),index?'—':'No visits yet');setText(find(design,ids[3]),index?'—':'Log your first cup');}});
-  if(collectionTab==='Lists'){
-   const box=find(design,'6:109'),newList=structuredClone(find(FIGMA_DESIGNS.lists,'1:45'));box.children=[newList];box.s.height=634;
-   find(design,'6:206').s.top+=125;design.s.height+=125;
-   find(design,'6:103').s.background='transparent';find(design,'6:105').s.color='#171713';find(design,'6:101').s.color='#77766f';
-   find(design,'6:104').children.push({id:'list-underline',name:'Underline',type:'FRAME',s:{left:8,top:86,width:42,height:4,background:'#f04e23'},children:[]});
-  }
+  const visits=saved.visits,average=visits.length?visits.reduce((sum,v)=>sum+Number(v.rating||0),0)/visits.length:0;
+  setText(find(design,'41:680'),String(visits.length).padStart(2,'0'));setText(find(design,'41:687'),average?average.toFixed(1):'—');setText(find(design,'41:692'),favoriteNames.length);
+  const diary=find(design,'41:707'),template=diary.children[0];
+  diary.children=visits.length?visits.map((visit,i)=>{const row=structuredClone(template);row.s.top=i*115;const texts=all(row).filter(n=>n.type==='TEXT'),date=new Date(visit.date);[String(i+1).padStart(2,'0'),date.getDate(),date.toLocaleDateString('en-US',{month:'short',year:'numeric'}),'Visit log',visit.cafe,visit.order].forEach((value,j)=>setText(texts[j],value));texts[4].s.width=248;return row;}):[emptyCard('No visits yet','Log your first cup to start your diary.',0)];
+  const diaryHeight=visits.length?visits.length*115:185.09375,diaryDelta=diaryHeight-230;diary.s.height=diaryHeight;find(design,'41:695').s.height+=diaryDelta;find(design,'41:747').s.top+=diaryDelta;find(design,'41:845').s.top+=diaryDelta;design.s.height+=diaryDelta;
+  const box=find(design,'41:762');box.s.background='transparent';
+  if(collectionTab==='Favorites'){
+   const template=box.children[0],favorites=favoriteNames.map(name=>sourceCafes.find(c=>nameOf(c)===name)||{name});box.children=favorites.length?favorites.slice(0,3).map((c,i)=>makeCard(template,cafeState(c),i)):[emptyCard('No favorites yet','Tap a heart on a café to save it here.')];box.s.height=Math.max(Math.min(favorites.length,3),1)*186.09375+1;
+  }else{populateLists(box);find(design,'41:759').action='new-list';}
+  if(collectionTab==='Favorites')find(design,'41:759').action='favorites';
+  const delta=box.s.height-373.18798828125;find(design,'41:844').s.height=box.s.height+20;find(design,'41:747').s.height+=delta;find(design,'41:845').s.top+=delta;design.s.height+=delta;
  }
- if(route==='activity'){const activity=find(design,'4:456');activity.children=[{id:'empty-activity',type:'TEXT',name:'Empty activity',s:{left:18,top:180,width:366,height:40,color:'rgba(23,23,19,1.0)',fontFamily:'Inter',fontSize:13,fontWeight:400,lineHeight:20,textAlign:'center'},text:'Your activity will appear here.',children:[]}]}
- if(route==='lists'||route==='journal'&&collectionTab==='Lists'){const container=find(design,route==='lists'?'1:19':'6:109'),newList=find(container,'1:45'),template=structuredClone(find(FIGMA_DESIGNS.lists,'1:34'));container.children=[newList];if(saved.lists.length){saved.lists.forEach((list,i)=>{const card=structuredClone(template);card.id='custom-'+i;card.s.top=423+i*211;card.action='custom-list';const texts=all(card).filter(x=>x.type==='TEXT');setText(texts[0],`${String(i+3).padStart(2,'0')} / PERSONAL`);setText(texts[1],list.name);setText(texts[2],`${list.cafes.length} cafés`);container.children.splice(container.children.length-1,0,card);});const delta=saved.lists.length*211;newList.s.top+=delta;container.s.height+=delta;find(design,route==='lists'?'1:56':'6:206').s.top+=delta;design.s.height+=delta;}}
+ if(route==='lists'){const box=find(design,'1:19');populateLists(box);const delta=box.s.height-634;find(design,'1:56').s.top+=delta;design.s.height+=delta;}
+ if(route==='activity'){const feed=find(design,'4:456');feed.children=[emptyCard('No activity yet','Your coffee circle’s activity will appear here.',30)];feed.s.height=245;const layout=find(design,'4:455');layout.children=[feed];layout.s.height=275;const footer=all(design).find(n=>n.name==='Footer');footer.s.top=66+267+275;design.s.height=footer.s.top+208;}
  document.body.dataset.route=route;app.innerHTML=`<div class="design-viewport" style="height:${design.s.height}px"><div class="design-frame" style="height:${design.s.height}px">${design.children.map(n=>nodeHTML(n)).join('')}</div></div>`;
- document.querySelectorAll('.bottom-nav button').forEach(b=>{b.classList.toggle('active',b.dataset.route===route);b.setAttribute('aria-current',b.dataset.route===route?'page':'false');});resize();bind();
+ document.querySelectorAll('.bottom-nav button').forEach(b=>{const active=b.dataset.route===route||route==='lists'&&b.dataset.route==='journal';b.classList.toggle('active',active);b.setAttribute('aria-current',active?'page':'false');});resize();bind();
+}
+function populateLists(box){
+ const template=find(FIGMA_DESIGNS.lists,'1:34');box.s.background='transparent';box.children=saved.lists.map((list,i)=>{const card=structuredClone(template);card.id='custom-'+i;card.s.top=1+i*211;card.action='custom-list';const texts=all(card).filter(n=>n.type==='TEXT');setText(texts[0],`${String(i+1).padStart(2,'0')} / PERSONAL`);setText(texts[1],list.name);setText(texts[2],`${list.cafes.length} cafés`);return card;});
+ if(!saved.lists.length)box.children.push(emptyCard('No lists yet','Create a list to collect your coffee stops.'));
+ const create=structuredClone(find(FIGMA_DESIGNS.lists,'1:45'));create.s.top=saved.lists.length?1+saved.lists.length*211:187.09375;box.children.push(create);box.s.height=create.s.top+211;
 }
 function resize(){const scale=Math.min(innerWidth,402)/402;document.documentElement.style.setProperty('--design-scale',scale);const frame=document.querySelector('.design-frame');if(frame)document.querySelector('.design-viewport').style.height=parseFloat(frame.style.height)*scale+'px';}
 function go(next){route=next;location.hash=next;render();window.scrollTo(0,0);}
@@ -122,7 +132,7 @@ function bind(){document.querySelectorAll('[data-action]').forEach(button=>butto
  if(action==='save-visit'){const order=document.querySelector('#visitOrder'),cafeInput=document.querySelector('#visitCafe'),cafeName=cafeInput?.value.trim();if(!cafeName||!order.value.trim()||!visitRating){order.reportValidity();toast('Choose a café, visit rating, and enter your order.');return;}button.disabled=true;try{const existing=directory.find(c=>nameOf(c).toLowerCase()===cafeName.toLowerCase());if(!existing){const response=await fetch('/api/cafes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:cafeName})});const data=await response.json();if(!response.ok)throw Error(data.error||'Could not add this café to the directory.');if(data.cafe){directory.unshift(data.cafe);selectedCafe=nameOf(data.cafe);}}else selectedCafe=nameOf(existing);saved.visits.unshift({cafe:selectedCafe||cafeName,order:order.value.trim(),comment:document.querySelector('#visitComment').value,rating:visitRating,date:new Date().toISOString()});persist();go('journal');toast(account.user?'Visit saved to your journal.':'Visit saved to this device.');}catch(error){button.disabled=false;toast(error.message);}}
  if(action==='like'){saved.likes[button.dataset.like]=!saved.likes[button.dataset.like];persist();button.classList.toggle('liked',saved.likes[button.dataset.like]);}
  if(action==='new-list'){const el=modal('New list','<form id="newListForm"><label for="listName">LIST NAME</label><input id="listName" required placeholder="e.g. Weekend coffee stops"><button class="solid" type="submit">CREATE LIST</button></form>');el.querySelector('#newListForm').onsubmit=e=>{e.preventDefault();saved.lists.push({name:el.querySelector('#listName').value.trim(),cafes:[]});persist();el.close();render();};}
- if(action==='custom-list')modal('Your list','<p>This list is empty. New lists are saved on this device.</p>');
+ if(action==='custom-list')modal('Your list',nodeHTML({...emptyCard('No cafés yet','Your saved cafés will appear here.'),s:{position:'relative',left:0,top:0,width:'100%',height:185}}));
  if(action==='settings')openAccountModal();
  if(action==='people')modal('Your circle','<p>This screen follows the Figma sample activity. Following people will need user accounts and a shared activity service.</p>');
  if(action==='export'){const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([JSON.stringify(saved,null,2)],{type:'application/json'}));link.download='cafecito-journal.json';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);}
