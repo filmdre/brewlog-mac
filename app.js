@@ -30,6 +30,7 @@ const setText=(n,text)=>{if(n){n.text=String(text);n.runs=[{text:String(text),s:
 function nameOf(c){let name=String(c.name||'');for(const city of c.cities||[]){const literal=city.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');name=name.replace(new RegExp('\\s*(?:—|-|\\(|,)\\s*'+literal+'(?:,\\s*CA)?\\)?$','i'),'');}return name.replace(/\s+—\s+[^,]+,\s*CA$/i,'').replace(/\s+\([^)]{2,30}\)$/,'').trim();}
 function css(style){return Object.entries(style).filter(([k])=>!k.startsWith('border')||k==='borderRadius').map(([k,v])=>`${k.replace(/[A-Z]/g,c=>'-'+c.toLowerCase())}:${typeof v==='number'&&!['fontWeight','opacity','zIndex'].includes(k)?v+'px':v}`).join(';');}
 function nodeHTML(n,context={}){
+ if(n.type==='FAVORITE')return `<button type="button" class="layer cafe-favorite ${n.favorite?'is-favorite':''}" data-action="favorite" aria-label="${esc(`${n.favorite?'Remove':'Add'} ${n.cafeName} ${n.favorite?'from':'to'} favorites`)}" aria-pressed="${n.favorite}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 5.8a5.2 5.2 0 0 0-7.4 0L12 7.2l-1.4-1.4a5.2 5.2 0 1 0-7.4 7.4L12 22l8.8-8.8a5.2 5.2 0 0 0 0-7.4Z"/></svg></button>`;
  if(n.type==='EMPTY')return `<article class="layer empty-coffee-card" style="${css(n.s)}"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M10 19h25v12a10 10 0 0 1-10 10h-5a10 10 0 0 1-10-10V19Zm25 2h3a6 6 0 0 1 0 12h-4M7 44h31M17 13V7m8 6V4m8 9V7"/></svg><h3>${esc(n.text)}</h3><p>${esc(n.description||'')}</p></article>`;
  if(n.name==='Journal collections')return `<div class="layer journal-tabs" style="${css({...n.s,width:230})}" role="tablist" aria-label="Journal collections">${['Favorites','Lists'].map(label=>`<button type="button" role="tab" aria-selected="${collectionTab===label}" class="${collectionTab===label?'selected':''}" data-action="collection-${label.toLowerCase()}">${label}</button>`).join('')}</div>`;
  let ctx={...context},tag='div',attrs='',style={...n.s},content='';
@@ -71,6 +72,8 @@ function makeCard(template,c,index){
  card.children[0].children[0].s.background=c.status==='Logged'?'#171713':'#f04e23';
  setText(texts[0],c.status||'Up next');setText(texts[1],c.name);texts[1].s.width=330;texts[1].s.fontSize=Math.min(23,550/Math.max(c.name.length,1));setText(texts[2],/^https?:/.test(c.source||'')?'From the café directory':c.source||'From the café directory');texts[2].s.width=330;
  for(const n of nodes.filter(n=>n.name.startsWith('Button - ')&&!n.name.includes(':margin'))){if(n.name.includes('stars')){const score=Number(n.name.match(/(\d) stars/)[1]);for(const p of all(n).flatMap(n=>n.paths||[]))p.fill=score<=c.rating?'#f04e23':'#b6b4a9';}else if(/favorit/i.test(n.name)){n.action='favorite';n.name=`Button - ${c.favorite?'Remove':'Add'} ${c.name} ${c.favorite?'from':'to'} favorites`;n.s.background=c.favorite?'#f04e23':'transparent';}}
+ const removeImportedHearts=n=>{n.children=(n.children||[]).filter(child=>!(child.name.startsWith('Button')&&/favorit/i.test(child.name))&&child.name!=='HeartIcon');n.children.forEach(removeImportedHearts);};removeImportedHearts(card);
+ card.children.push({id:`favorite-${index}`,name:'Favorite control',type:'FAVORITE',favorite:c.favorite,cafeName:c.name,s:{},children:[]});
  return card;
 }
 function render(){
