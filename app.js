@@ -47,6 +47,7 @@ function nodeHTML(n,context={}){
   if(!action&&text==='Log visit')action='log';if(!action&&text==='Favorites')action='favorites';if(!action&&text==='Lists')action='lists';
   if(!action&&text==='Like'){action='like';attrs+=` data-like="${n.id}"`;}
   if(!action&&text==='Save to diary')action='save-visit';if(!action&&text==='Find people')action='people';
+  if(!action&&text==='Add to database')action='add-cafe';
   if(!action&&n.children.some(c=>c.name==='PlusIcon')&&!text)action='log';if(!action&&n.children.some(c=>c.name==='ArrowIcon')&&!text)action='lists';
   if(n.id==='1:20')action='favorites';if(n.id==='1:34')action='want';if(n.id==='1:45')action='new-list';
   if(['11:1152','11:1155','11:1157','11:1159'].includes(n.id)){action='filter';attrs+=` data-filter="${text}"`;style.background=filter===text?'#171713':'transparent';style.color=filter===text?'white':'#77766f';}
@@ -60,6 +61,7 @@ function nodeHTML(n,context={}){
   content=(n.runs||[{text:n.text,s:{}}]).map(r=>`<span style="${css(r.s)}">${esc(r.text)}</span>`).join('');
  }else if(n.paths){tag='svg';attrs+=` viewBox="0 0 ${n.view[0]} ${n.view[1]}" aria-hidden="true"`;content=n.paths.map(p=>`<path d="${esc(p.d)}" fill="${p.fill}" fill-rule="${p.rule}"></path>`).join('');}
  else{content=(n.s.borderWidth?`<span aria-hidden="true" class="layer-border" style="border-style:solid;border-color:${n.s.borderColor};border-width:${n.s.borderWidth};border-radius:inherit"></span>`:'')+(n.children||[]).map(child=>nodeHTML(child,{...ctx,parent:n.name,filterButton:attrs.includes('data-action="filter"')||context.filterButton})).join('');}
+ if(n.id==='15:60')return `<input class="layer native-input" style="${inputCss(style)}" id="addCafeLocation" aria-label="Address or city" placeholder="e.g. Brooklyn, NY">`;
  if(n.name==='Text Input'&&route==='cafes')return `<input class="layer native-input" style="${css(style)}" id="search" aria-label="Search cafés or tags" placeholder="Search your cafés or tags..." value="${esc(query)}">`;
  if(n.id==='15:805')return `<div class="layer cafe-autocomplete" style="${css(style)}"><input class="native-input cafe-select" style="${inputCss({...style,left:0,top:0,width:'100%',height:'100%'})}" id="visitCafe" aria-label="Café" placeholder="Search or enter a café..." value="${esc(selectedCafe)}" autocomplete="off" aria-controls="cafe-suggestions" aria-expanded="false"><div class="cafe-suggestions" id="cafe-suggestions" role="listbox" hidden></div></div>`;
  if(n.id==='15:816')return `<input class="layer native-input" style="${inputCss(style)}" id="visitLocation" aria-label="Address or city" placeholder="e.g. Brooklyn, NY or 22 Main Street">`;
@@ -81,15 +83,18 @@ function makeCard(template,c,index){
 }
 function render(){
  if(!['journal','cafes','log','activity','lists'].includes(route))route='journal';
- const design=structuredClone(FIGMA_DESIGNS[route]||FIGMA_DESIGNS.journal);design.children.splice(1,1);
+ let design=structuredClone(FIGMA_DESIGNS[route]||FIGMA_DESIGNS.journal);design.children.splice(1,1);
  for(const n of all(design).filter(n=>n.type==='TEXT'&&['DOPPIO','DOPPIO®'].includes(n.text)))setText(n,'CAFECITO');
  const sourceCafes=directory, favoriteNames=Object.keys(saved.favorites).filter(key=>saved.favorites[key]===true);
  if(route==='cafes'){
-  const box=find(design,'11:1161'),template=box.children[0],matches=sourceCafes.map(cafeState).filter(c=>(filter==='All'||filter==='Favorites'&&c.favorite||filter==='Logged'&&c.status==='Logged'||filter==='Want to try'&&c.status!=='Logged')&&[c.name,...(c.tags||[]).filter(t=>!(c.cities||[]).includes(t))].join(' ').toLowerCase().includes(query.toLowerCase()));
+  const matches=sourceCafes.map(cafeState).filter(c=>(filter==='All'||filter==='Favorites'&&c.favorite||filter==='Logged'&&c.status==='Logged'||filter==='Want to try'&&c.status!=='Logged')&&[c.name,...(c.tags||[]).filter(t=>!(c.cities||[]).includes(t))].join(' ').toLowerCase().includes(query.toLowerCase()));
+  if(query&& !matches.length){design=structuredClone(FIGMA_DESIGNS.cafesAdd);design.children.splice(1,1);setText(find(design,'15:48'),query);}
+  else {const box=find(design,'11:1161'),template=box.children[0];
   const shown=matches.slice(0,pageSize),height=Math.max(shown.length,1)*186.09375+1,more=matches.length>pageSize?60:0,delta=height+more-1117.5625;
   box.children=shown.length?shown.map((c,i)=>makeCard(template,c,i)):[emptyCard(query?'No matching cafés':filter==='Favorites'?'No favorites yet':filter==='Logged'?'No visits yet':'No cafés yet',query?'Try another café name.':'Your saved cafés will appear here.')];box.s.height=height+more;box.s.background='transparent';
   find(design,'11:1400').s.height+=delta;find(design,'11:1127').s.height+=delta;find(design,'11:1401').s.top+=delta;design.s.height+=delta;
   if(more)box.children.push({id:'more',type:'FRAME',name:'Button',action:'more',s:{left:0,top:height+10,width:366,height:40},children:[{id:'more-text',type:'TEXT',name:'More',s:{left:0,top:0,width:366,height:40,fontSize:11,lineHeight:40,textAlign:'center'},text:`Show more (${matches.length-shown.length})`,children:[]}]});
+  }
  }
  if(route==='journal'){
   const visits=saved.visits,average=visits.length?visits.reduce((sum,v)=>sum+Number(v.rating||0),0)/visits.length:0;
@@ -138,6 +143,7 @@ function bind(){document.querySelectorAll('[data-action]').forEach(button=>butto
  if(action==='rate')setCafeRating(name,Number(button.dataset.rating));
  if(action==='visit-rate'){visitRating=Number(button.dataset.rating);document.querySelectorAll('[data-action="visit-rate"]').forEach(b=>b.classList.toggle('chosen',Number(b.dataset.rating)<=visitRating));const value=document.querySelector('[data-node="15:845"]');if(value)value.textContent=visitRating?visitRating.toFixed(1):'—';validateVisit();}
  if(action==='save-visit'){const cafeInput=document.querySelector('#visitCafe'),cafeName=cafeInput?.value.trim(),location=document.querySelector('#visitLocation')?.value.trim()||'',order=document.querySelector('#visitOrder')?.value.trim()||'',comment=document.querySelector('#visitComment')?.value.trim()||'';if(!cafeName){toast('Choose a café before saving your visit.');return;}button.disabled=true;try{const existing=directory.find(c=>nameOf(c).toLowerCase()===cafeName.toLowerCase());if(!existing){const response=await fetch('/api/cafes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:cafeName,location})});const data=await response.json();if(!response.ok)throw Error(data.error||'Could not add this café to the directory.');if(data.cafe){directory.unshift(data.cafe);selectedCafe=nameOf(data.cafe);}}else selectedCafe=nameOf(existing);saved.visits.unshift({cafe:selectedCafe||cafeName,location,order,comment,rating:visitRating,date:new Date().toISOString()});persist();go('journal');toast(account.user?'Visit saved to your journal.':'Visit saved to this device.');}catch(error){button.disabled=false;toast(error.message);}}
+ if(action==='add-cafe'){const cafeName=query.trim(),location=document.querySelector('#addCafeLocation')?.value.trim()||'';if(!cafeName){toast('Search for a café first.');return;}button.disabled=true;try{const response=await fetch('/api/cafes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:cafeName,location})});const data=await response.json();if(!response.ok)throw Error(data.error||'Could not add this café to the directory.');if(data.cafe)directory=uniqueCafes([data.cafe,...directory]);query='';filter='All';pageSize=6;render();toast(data.created?'Café added to your database.':'That café is already in your database.');}catch(error){button.disabled=false;toast(error.message);}}
  if(action==='like'){saved.likes[button.dataset.like]=!saved.likes[button.dataset.like];persist();button.classList.toggle('liked',saved.likes[button.dataset.like]);}
  if(action==='new-list'){const el=modal('New list','<form id="newListForm"><label for="listName">LIST NAME</label><input id="listName" required placeholder="e.g. Weekend coffee stops"><button class="solid" type="submit">CREATE LIST</button></form>');el.querySelector('#newListForm').onsubmit=e=>{e.preventDefault();saved.lists.push({name:el.querySelector('#listName').value.trim(),cafes:[]});persist();el.close();render();};}
  if(action==='custom-list')modal('Your list',nodeHTML({...emptyCard('No cafés yet','Your saved cafés will appear here.'),s:{position:'relative',left:0,top:0,width:'100%',height:185}}));
