@@ -15,7 +15,7 @@ async function loadAccountState(user){
  const {data,error}=await account.client.from('brewlog_state').select('state').eq('user_id',user.id).maybeSingle();
  if(error){toast('Account connected, but your journal could not be loaded.');account.ready=true;render();return;}
  if(data?.state){saved=normalizeState(data.state);persistLocal();}
- else {account.ready=true;await saveCloud();}
+ else {saved=blankState();persistLocal();account.ready=true;await saveCloud();}
  account.ready=true;render();
 }
 async function initAccounts(){
