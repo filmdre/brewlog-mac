@@ -7,6 +7,12 @@
   "theme_color": "#f2a900",
   "icons": [
     {
+      "src": "/assets/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/assets/app-icon.png",
       "sizes": "1024x1024",
       "type": "image/png",
