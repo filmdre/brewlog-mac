@@ -151,6 +151,50 @@ def notion_cafes():
     return {"cafes": [normalize_page(page) for page in results]}
 
 
+def notion_create_cafe(name):
+    load_dotenv()
+    token = os.getenv("NOTION_TOKEN")
+    data_source_id = os.getenv("NOTION_DATA_SOURCE_ID")
+    database_id = os.getenv("NOTION_DATABASE_ID")
+    if not token or token == "secret_replace_me":
+        raise RuntimeError("NOTION_TOKEN is not configured.")
+    if not data_source_id and not database_id:
+        raise RuntimeError("Set NOTION_DATABASE_ID or NOTION_DATA_SOURCE_ID in .env.")
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Notion-Version": os.getenv("NOTION_API_VERSION", "2026-03-11"),
+    }
+    if not data_source_id:
+        request = urllib.request.Request(f"https://api.notion.com/v1/databases/{database_id}", headers=headers)
+        with urllib.request.urlopen(request, timeout=20) as response:
+            database = json.loads(response.read().decode())
+        data_sources = database.get("data_sources", [])
+        data_source_id = data_sources[0].get("id") if data_sources else database_id
+    source_request = urllib.request.Request(f"https://api.notion.com/v1/data_sources/{data_source_id}", headers=headers)
+    with urllib.request.urlopen(source_request, timeout=20) as response:
+        source = json.loads(response.read().decode())
+    properties = source.get("properties", {})
+    title_name = next((key for key, prop in properties.items() if prop.get("type") == "title"), "Name")
+    existing = notion_cafes()["cafes"]
+    duplicate = next((cafe for cafe in existing if cafe.get("name", "").strip().casefold() == name.casefold()), None)
+    if duplicate:
+        return {"cafe": duplicate, "created": False}
+    body = {
+        "parent": {"data_source_id": data_source_id},
+        "properties": {title_name: {"title": [{"type": "text", "text": {"content": name}}]}},
+    }
+    request = urllib.request.Request(
+        "https://api.notion.com/v1/pages",
+        data=json.dumps(body).encode(),
+        headers=headers,
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=20) as response:
+        page = json.loads(response.read().decode())
+    return {"cafe": normalize_page(page), "created": True}
+
+
 def notion_schema():
     load_dotenv()
     token = os.getenv("NOTION_TOKEN")
@@ -231,6 +275,31 @@ class Handler(SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
         super().do_GET()
+
+    def do_POST(self):
+        if self.path == "/api/cafes":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                payload = json.loads(self.rfile.read(length).decode() or "{}")
+                name = str(payload.get("name", "")).strip()
+                if not name or len(name) > 120:
+                    raise ValueError("Enter a café name up to 120 characters.")
+                body = json.dumps(notion_create_cafe(name)).encode()
+                status = 200
+            except ValueError as error:
+                body = json.dumps({"error": str(error)}).encode()
+                status = 400
+            except (RuntimeError, urllib.error.HTTPError, urllib.error.URLError) as error:
+                body = json.dumps({"error": str(error)}).encode()
+                status = 503
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        self.send_error(404)
 
 
 if __name__ == "__main__":
