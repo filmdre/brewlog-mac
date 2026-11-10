@@ -182,8 +182,28 @@ def notion_schema():
     return {"properties": properties, "data_sources": data_sources}
 
 
+def public_config():
+    load_dotenv()
+    url = os.getenv("SUPABASE_URL", "").strip()
+    anon_key = os.getenv("SUPABASE_ANON_KEY", "").strip()
+    return {
+        "configured": bool(url and anon_key and "your-project" not in url),
+        "supabaseUrl": url,
+        "supabaseAnonKey": anon_key,
+    }
+
+
 class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
+        if self.path == "/api/config":
+            body = json.dumps(public_config()).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path == "/api/schema":
             try:
                 body = json.dumps(notion_schema()).encode()
