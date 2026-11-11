@@ -37,7 +37,8 @@ const find=(n,id)=>all(n).find(c=>c.id===id);
 const setText=(n,text)=>{if(n){n.text=String(text);n.runs=[{text:String(text),s:{}}];}};
 function nameOf(c){let name=String(c.name||'');for(const city of c.cities||[]){const literal=city.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');name=name.replace(new RegExp('\\s*(?:—|-|\\(|,)\\s*'+literal+'(?:,\\s*CA)?\\)?$','i'),'');}return name.replace(/\s+—\s+[^,]+,\s*CA$/i,'').replace(/\s+\([^)]{2,30}\)$/,'').trim();}
 const localDateValue=date=>{const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');return `${y}-${m}-${d}`;};
-function uniqueCafes(cafes){const seen=new Set();return cafes.filter(cafe=>{const key=nameOf(cafe).normalize('NFKC').replace(/[‘’]/g,"'").replace(/\s+/g,' ').trim().toLocaleLowerCase('en-US');if(!key||seen.has(key))return false;seen.add(key);return true;});}
+function cafeKey(value){return String(value||'').normalize('NFKC').replace(/[‘’]/g,"'").replace(/\s+/g,' ').trim().toLocaleLowerCase('en-US');}
+function uniqueCafes(cafes){const seen=new Set();return cafes.filter(cafe=>{const key=cafeKey(nameOf(cafe));if(!key||seen.has(key))return false;seen.add(key);return true;});}
 function addActivity(type,data){saved.activities.unshift({type,...data,at:new Date().toISOString()});saved.activities=saved.activities.slice(0,50);}
 function activityAge(iso){const minutes=Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/60000));if(minutes<1)return'Just now';if(minutes<60)return`${minutes} min`;const hours=Math.floor(minutes/60);if(hours<24)return`${hours} hr`;const days=Math.floor(hours/24);return days===1?'Yesterday':`${days} days`;}
 function css(style){return Object.entries(style).filter(([k])=>!k.startsWith('border')||k==='borderRadius').map(([k,v])=>`${k.replace(/[A-Z]/g,c=>'-'+c.toLowerCase())}:${typeof v==='number'&&!['fontWeight','opacity','zIndex'].includes(k)?v+'px':v}`).join(';');}
@@ -87,7 +88,7 @@ function nodeHTML(n,context={}){
  return `<${tag} class="layer ${n.type==='TEXT'?'layer-text':''}" data-node="${n.id}"${attrs} style="${css(style)}">${content}</${tag}>`;
 }
 const examples=[{name:'Subtext Coffee',source:'Added from a friend',tags:['Pour over','Quiet'],status:'Logged',rating:5,favorite:true},{name:'Kawa',source:'Saved from the weekend list',tags:['Espresso','Pastries'],status:'Next up',rating:0,favorite:true},{name:'Lowkey',source:'Recommended by Mia',tags:['Light roast','Design'],status:'Logged',rating:4,favorite:true},{name:'Assembly',source:'Saved from Field Notes',tags:['Roastery','Espresso'],status:'Next up',rating:0,favorite:true},{name:'Process',source:'On the summer list',tags:['Natural','Social'],status:'Someday',rating:0},{name:'Drip',source:'Saved from Sam',tags:['Brunch','Outdoor'],status:'Someday',rating:0}];
-function cafeState(c){const key=nameOf(c);return {...c,name:key,status:saved.visits.some(v=>v.cafe===key)?'Logged':'Up next',favorite:saved.favorites[key]===true,rating:saved.ratings[key]??0,bookmarked:saved.lists.some(list=>Array.isArray(list.cafes)&&list.cafes.includes(key))};}
+function cafeState(c){const key=nameOf(c),normalized=cafeKey(key);return {...c,name:key,status:saved.visits.some(v=>cafeKey(v.cafe)===normalized)?'Logged':'Up next',favorite:saved.favorites[key]===true,rating:saved.ratings[key]??0,bookmarked:saved.lists.some(list=>Array.isArray(list.cafes)&&list.cafes.some(cafe=>cafeKey(cafe)===normalized))};}
 function emptyCard(title,description,top=1){return {id:'empty-'+title,name:'Empty coffee card',type:'EMPTY',s:{left:1,top,width:364,height:185.09375},text:title,description,children:[]};}
 function makeCard(template,c,index){
  const card=structuredClone(template);card.cafeName=c.name;card.s.top=1+index*186.09375;const nodes=all(card),texts=nodes.filter(n=>n.type==='TEXT');
@@ -108,7 +109,7 @@ function render(){
  let design=structuredClone(FIGMA_DESIGNS[route]||FIGMA_DESIGNS.journal);design.children.splice(1,1);
  for(const n of all(design).filter(n=>n.type==='TEXT'&&['DOPPIO','DOPPIO®'].includes(n.text)))setText(n,'CAFECITO');
  for(const n of all(design).filter(n=>n.type==='TEXT'&&n.text==='Settings'))setText(n,'Profile');
- const sourceCafes=directory, favoriteNames=Object.keys(saved.favorites).filter(key=>saved.favorites[key]===true);
+ const sourceCafes=uniqueCafes(directory), favoriteNames=Object.keys(saved.favorites).filter(key=>saved.favorites[key]===true);
  if(route==='cafes'){
   const matches=sourceCafes.map(cafeState).filter(c=>(filter==='All'||filter==='Favorites'&&c.favorite||filter==='Logged'&&c.status==='Logged'||filter==='Want to try'&&c.status!=='Logged')&&[c.name,...(c.tags||[]).filter(t=>!(c.cities||[]).includes(t))].join(' ').toLowerCase().includes(query.toLowerCase()));
   if(query&& !matches.length){design=structuredClone(FIGMA_DESIGNS.cafesAdd);design.children.splice(1,1);setText(find(design,'15:48'),query);}
