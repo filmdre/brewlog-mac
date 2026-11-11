@@ -219,7 +219,7 @@ def notion_delete_cafe(page_id):
     }
     request = urllib.request.Request(
         f"https://api.notion.com/v1/pages/{page_id}",
-        data=json.dumps({"archived": True}).encode(),
+        data=json.dumps({"in_trash": True}).encode(),
         headers=headers,
         method="PATCH",
     )

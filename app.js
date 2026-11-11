@@ -37,7 +37,7 @@ const find=(n,id)=>all(n).find(c=>c.id===id);
 const setText=(n,text)=>{if(n){n.text=String(text);n.runs=[{text:String(text),s:{}}];}};
 function nameOf(c){let name=String(c.name||'');for(const city of c.cities||[]){const literal=city.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');name=name.replace(new RegExp('\\s*(?:—|-|\\(|,)\\s*'+literal+'(?:,\\s*CA)?\\)?$','i'),'');}return name.replace(/\s+—\s+[^,]+,\s*CA$/i,'').replace(/\s+\([^)]{2,30}\)$/,'').trim();}
 const localDateValue=date=>{const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');return `${y}-${m}-${d}`;};
-function cafeKey(value){return String(value||'').normalize('NFKC').replace(/[‘’]/g,"'").replace(/\s+/g,' ').trim().toLocaleLowerCase('en-US');}
+function cafeKey(value){return plainE(String(value||'')).normalize('NFKC').replace(/[‘’]/g,"'").replace(/\s+/g,' ').trim().toLocaleLowerCase('en-US');}
 function uniqueCafes(cafes){const seen=new Set();return cafes.filter(cafe=>{const key=cafeKey(nameOf(cafe));if(!key||seen.has(key))return false;seen.add(key);return true;});}
 function addActivity(type,data){saved.activities.unshift({type,...data,at:new Date().toISOString()});saved.activities=saved.activities.slice(0,50);}
 function activityAge(iso){const minutes=Math.max(0,Math.floor((Date.now()-new Date(iso).getTime())/60000));if(minutes<1)return'Just now';if(minutes<60)return`${minutes} min`;const hours=Math.floor(minutes/60);if(hours<24)return`${hours} hr`;const days=Math.floor(hours/24);return days===1?'Yesterday':`${days} days`;}
