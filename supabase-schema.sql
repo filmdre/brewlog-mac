@@ -10,9 +10,13 @@ create table if not exists public.brewlog_state (
 
 create table if not exists public.brewlog_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
-  username text not null check (username ~ '^[a-z0-9_]{3,20}$'),
+  username text not null check (username ~ '^[A-Za-z0-9_]{3,20}$'),
   created_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.brewlog_profiles drop constraint if exists brewlog_profiles_username_check;
+alter table public.brewlog_profiles add constraint brewlog_profiles_username_check
+  check (username ~ '^[A-Za-z0-9_]{3,20}$');
 
 create unique index if not exists brewlog_profiles_username_unique
   on public.brewlog_profiles (lower(username));
