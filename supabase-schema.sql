@@ -8,6 +8,33 @@ create table if not exists public.brewlog_state (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.brewlog_profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  username text not null check (username ~ '^[a-z0-9_]{3,20}$'),
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+create unique index if not exists brewlog_profiles_username_unique
+  on public.brewlog_profiles (lower(username));
+
+alter table public.brewlog_profiles enable row level security;
+
+drop policy if exists "Users can read their own Cafecito profile" on public.brewlog_profiles;
+create policy "Users can read their own Cafecito profile"
+  on public.brewlog_profiles for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can create their own Cafecito profile" on public.brewlog_profiles;
+create policy "Users can create their own Cafecito profile"
+  on public.brewlog_profiles for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update their own Cafecito profile" on public.brewlog_profiles;
+create policy "Users can update their own Cafecito profile"
+  on public.brewlog_profiles for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 alter table public.brewlog_state enable row level security;
 
 drop policy if exists "Users can read their own Cafecito state" on public.brewlog_state;
