@@ -205,6 +205,29 @@ def notion_create_cafe(name, location=""):
     return {"cafe": normalize_page(page), "created": True}
 
 
+def notion_delete_cafe(page_id):
+    load_dotenv()
+    token = os.getenv("NOTION_TOKEN")
+    if not token or token == "secret_replace_me":
+        raise RuntimeError("NOTION_TOKEN is not configured.")
+    if not page_id or len(str(page_id)) > 80:
+        raise ValueError("A valid cafe page id is required.")
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Notion-Version": os.getenv("NOTION_API_VERSION", "2026-03-11"),
+    }
+    request = urllib.request.Request(
+        f"https://api.notion.com/v1/pages/{page_id}",
+        data=json.dumps({"archived": True}).encode(),
+        headers=headers,
+        method="PATCH",
+    )
+    with urllib.request.urlopen(request, timeout=20) as response:
+        page = json.loads(response.read().decode())
+    return {"deleted": True, "page_id": page.get("id", page_id)}
+
+
 def notion_schema():
     load_dotenv()
     token = os.getenv("NOTION_TOKEN")
@@ -298,6 +321,29 @@ class Handler(SimpleHTTPRequestHandler):
                 if len(location) > 400:
                     raise ValueError("Enter an address or city up to 400 characters.")
                 body = json.dumps(notion_create_cafe(name, location)).encode()
+                status = 200
+            except ValueError as error:
+                body = json.dumps({"error": str(error)}).encode()
+                status = 400
+            except (RuntimeError, urllib.error.HTTPError, urllib.error.URLError) as error:
+                body = json.dumps({"error": str(error)}).encode()
+                status = 503
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        self.send_error(404)
+
+    def do_DELETE(self):
+        if self.path == "/api/cafes":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                payload = json.loads(self.rfile.read(length).decode() or "{}")
+                page_id = str(payload.get("page_id", "")).strip()
+                body = json.dumps(notion_delete_cafe(page_id)).encode()
                 status = 200
             except ValueError as error:
                 body = json.dumps({"error": str(error)}).encode()
